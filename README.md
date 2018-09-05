@@ -10,10 +10,33 @@ starting with Marshmallow (6.0).
 It is based on the excellent [FingerPrintManager](https://github.com/JesusM/FingerprintManager) which in turn is based
 on [Googles official FingerPrint sample](https://github.com/googlesamples/android-FingerprintDialog).
 
+[![Release](https://jitpack.io/v/unverbraucht/BiometricPromptCompat.svg)]
+(https://jitpack.io/#unverbraucht/BiometricPromptCompat)
+
 ## Use
 
 This library allows you to show a dialog prompting the user to use a biometric authentication method. It also allows
-you to query for the existance and function of biometric credentials. Sample use:
+you to query for the existance and function of biometric credentials. 
+
+Make sure that you have enabled jitpack.io as maven repository by adding this to your root build.grade:
+```groovy
+allprojects {
+    repositories {
+        // All your other maven sources...
+        maven { url 'https://jitpack.io' }
+    }
+}
+```
+
+Add the library dependency to your app's build.gradle:
+```groovy
+dependencies {
+    implementation 'com.github.unverbraucht:BiometricPromptCompat:v1.0.0'
+}
+```
+
+
+Sample use:
 
 ```kotlin
     private fun createBiometricPrompt() {
