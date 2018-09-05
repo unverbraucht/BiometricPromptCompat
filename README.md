@@ -10,7 +10,7 @@ starting with Marshmallow (6.0).
 It is based on the excellent [FingerPrintManager](https://github.com/JesusM/FingerprintManager) which in turn is based
 on [Googles official FingerPrint sample](https://github.com/googlesamples/android-FingerprintDialog).
 
-[![Release](https://jitpack.io/v/unverbraucht/BiometricPromptCompat.svg)]
+![Release](https://jitpack.io/v/unverbraucht/BiometricPromptCompat.svg)]
 (https://jitpack.io/#unverbraucht/BiometricPromptCompat)
 
 ## Use
