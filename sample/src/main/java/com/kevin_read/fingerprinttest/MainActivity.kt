@@ -3,20 +3,17 @@ package com.kevin_read.fingerprinttest
 import android.content.Context
 import android.content.DialogInterface
 import android.content.SharedPreferences
-import android.hardware.biometrics.BiometricPrompt
 import android.os.Build
 import android.os.Bundle
 import android.os.CancellationSignal
 import android.security.keystore.KeyProperties
-import android.support.annotation.RequiresApi
 import android.support.v7.app.AppCompatActivity
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.Toast
-import com.kevinread.fingerprintcompat.FingerprintAuthenticationDialogFragment
+import com.kevinread.fingerprintcompat.BiometricPromptCompat
 import com.kevinread.fingerprintcompat.FingerprintCompat
-import com.kevinread.fingerprintcompat.FingerprintError
 import com.kevinread.fingerprintcompat.encryption.Base64Encoder
 import com.kevinread.fingerprintcompat.encryption.EncryptionData
 import kotlinx.android.synthetic.main.activity_main.*
@@ -32,7 +29,7 @@ import javax.crypto.spec.IvParameterSpec
 
 
 
-class MainActivity : AppCompatActivity(), FingerprintAuthenticationDialogFragment.Result {
+class MainActivity : AppCompatActivity() {
 
     val encoder = Base64Encoder()
 
@@ -79,26 +76,16 @@ class MainActivity : AppCompatActivity(), FingerprintAuthenticationDialogFragmen
 
     }
 
-    private fun onAuthFailed(error: FingerprintError, msg: CharSequence?) {
+    private fun onAuthFailed(error: Int, msg: CharSequence?) {
         if (msg != null) {
             Toast.makeText(this, "Error: " + msg, Toast.LENGTH_SHORT).show()
         } else {
             when (error) {
-                FingerprintError.CANCELLED -> Toast.makeText(this, "Aborted", Toast.LENGTH_SHORT).show()
+                BiometricPromptCompat.BIOMETRIC_ERROR_USER_CANCELED -> Toast.makeText(this, "Aborted", Toast.LENGTH_SHORT).show()
                 else -> Toast.makeText(this, "Error", Toast.LENGTH_SHORT).show()
             }
 
         }
-    }
-
-    override fun onSuccess(fragment: FingerprintAuthenticationDialogFragment, cipher: Cipher) {
-        onAuthSuccess(cipher)
-        fragment.dismiss()
-    }
-
-    override fun onAbort(fragment: FingerprintAuthenticationDialogFragment, error: FingerprintError, msg: CharSequence?) {
-        onAuthFailed(error, msg)
-        fragment.dismiss()
     }
 
     private var fingerprintCompat: FingerprintCompat? = null
@@ -175,6 +162,7 @@ class MainActivity : AppCompatActivity(), FingerprintAuthenticationDialogFragmen
                 }
             } else if (enabled) {
                 fingerprintCompat?.createKey(KEY, true)
+                ensureCipher()
                 pref.edit().remove(KEY).apply()
             }
         }
@@ -183,16 +171,8 @@ class MainActivity : AppCompatActivity(), FingerprintAuthenticationDialogFragmen
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             fab.setOnClickListener { view ->
+                createBiometricPrompt()
                 try {
-                    if (Build.VERSION.SDK_INT >= 28) {
-                        createBiometricPrompt()
-                    } else {
-                        val fragment = FingerprintAuthenticationDialogFragment()
-                        fragment.setCryptoObject(cipher, fingerprintCompat)
-                        fragment.setResultCallback(this)
-
-                        fragment.show(supportFragmentManager, DIALOG_FRAGMENT_TAG)
-                    }
                 } catch (e: NoSuchAlgorithmException) {
                     throw RuntimeException("Failed to get an instance of Cipher", e)
                 } catch (e: NoSuchPaddingException) {
@@ -202,22 +182,22 @@ class MainActivity : AppCompatActivity(), FingerprintAuthenticationDialogFragmen
         }
     }
 
-    @RequiresApi(28)
     private fun createBiometricPrompt() {
-        val biometricPrompt = BiometricPrompt.Builder(this)
-                .setDescription("Wow")
+        val executor = if (Build.VERSION.SDK_INT >= 28) mainExecutor else BiometricPromptCompat.getExecutorForCurrentThread()
+        val biometricPrompt = BiometricPromptCompat.Builder(this)
+                .setDescription("This is a description")
                 .setTitle(getString(R.string.sign_in))
-                .setNegativeButton(getText(R.string.cancel), mainExecutor, DialogInterface.OnClickListener { dialogInterface, i ->
+                .setNegativeButton(getText(R.string.cancel), executor, DialogInterface.OnClickListener { dialogInterface, i ->
                     Toast.makeText(this, "Aborted", Toast.LENGTH_SHORT).show()
                 }).build()
         val cancellationSignal = CancellationSignal()
-        biometricPrompt.authenticate(BiometricPrompt.CryptoObject(cipher!!), cancellationSignal, mainExecutor, object: BiometricPrompt.AuthenticationCallback() {
+        biometricPrompt.authenticate(BiometricPromptCompat.CryptoObject(cipher=cipher!!), cancellationSignal, executor, object: BiometricPromptCompat.AuthenticationCallback() {
             override fun onAuthenticationError(errorCode: Int, errString: CharSequence?) {
-                onAuthFailed(FingerprintError.fromBiometricPromptError(errorCode), errString)
+                onAuthFailed(errorCode, errString)
             }
 
-            override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult?) {
-                onAuthSuccess(result?.cryptoObject?.cipher!!)
+            override fun onAuthenticationSucceeded(result: BiometricPromptCompat.AuthenticationResult) {
+                onAuthSuccess(result.cryptoObject.cipher!!)
             }
         })
     }

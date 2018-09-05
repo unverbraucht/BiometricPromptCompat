@@ -65,17 +65,22 @@ class FingerprintCompat(applicationContext: Context) {
         // createKey(KEY_NAME_NOT_INVALIDATED, false)
     }
 
-    public fun hasKey(keyName: String): Boolean {
+    fun hasKey(keyName: String): Boolean {
         keyStore.load(null)
-        val keyExists = keyStore.getKey(keyName, null) != null
-        return keyExists
+        try {
+            val keyExists = keyStore.getKey(keyName, null) != null
+            return keyExists
+        } catch (e: UnrecoverableKeyException) {
+            return false
+        }
     }
 
-    public fun areFingerprintsEnabled(): Boolean {
+    fun areFingerprintsEnabled(): Boolean {
         if (!keyguardManager.isKeyguardSecure) {
             return false
         }
 
+        @Suppress("DEPRECATION")
         if (!fingerprintManager.hasEnrolledFingerprints()) {
             return false
         }
@@ -93,7 +98,7 @@ class FingerprintCompat(applicationContext: Context) {
      * been disabled or reset after the key was generated, or if a fingerprint got enrolled after
      * the key was generated.
      */
-    public fun initCipher(cipher: Cipher, keyName: String): Boolean {
+    fun initCipher(cipher: Cipher, keyName: String): Boolean {
         try {
             keyStore.load(null)
             val key = keyStore.getKey(keyName, null) as SecretKey?
@@ -104,7 +109,7 @@ class FingerprintCompat(applicationContext: Context) {
         }
     }
 
-    public fun initDecryptingCipher(cipher: Cipher, keyName: String, decodedIVs: ByteArray?): Boolean {
+    fun initDecryptingCipher(cipher: Cipher, keyName: String, decodedIVs: ByteArray?): Boolean {
         try {
             keyStore.load(null)
             val key = keyStore.getKey(keyName, null) as SecretKey?
