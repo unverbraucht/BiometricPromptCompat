@@ -13,4 +13,31 @@ on [Googles official FingerPrint sample](https://github.com/googlesamples/androi
 ## Use
 
 This library allows you to show a dialog prompting the user to use a biometric authentication method. It also allows
-you to query for the existance and function of biometric credentials.
+you to query for the existance and function of biometric credentials. Sample use:
+
+```kotlin
+    private fun createBiometricPrompt() {
+        // Get the executor for the current / UI thread
+        val executor = if (Build.VERSION.SDK_INT >= 28) mainExecutor else BiometricPromptCompat.getExecutorForCurrentThread()
+        
+        // Create a BiometricPromptCompat through it's Builder, same interface as BiometricPrompt
+        val biometricPrompt = BiometricPromptCompat.Builder(this)
+                .setDescription("This is a description")
+                .setTitle("Dialog title")
+                .setNegativeButton("Cancel", executor, DialogInterface.OnClickListener { _, i ->
+                    Toast.makeText(this, "Aborted", Toast.LENGTH_SHORT).show()
+                }).build()
+        val cancellationSignal = CancellationSignal()
+        
+        // Authenticate the fingerprint
+        biometricPrompt.authenticate(BiometricPromptCompat.CryptoObject(cipher=myCipher), cancellationSignal, executor, object: BiometricPromptCompat.AuthenticationCallback() {
+            override fun onAuthenticationError(errorCode: Int, errString: CharSequence?) {
+                onAuthFailed(errorCode, errString)
+            }
+
+            override fun onAuthenticationSucceeded(result: BiometricPromptCompat.AuthenticationResult) {
+                onAuthSuccess(result.cryptoObject.cipher!!)
+            }
+        })
+    }
+```
