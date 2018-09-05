@@ -1,5 +1,6 @@
 package com.kevin_read.fingerprinttest
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.DialogInterface
 import android.content.SharedPreferences
@@ -31,8 +32,9 @@ import javax.crypto.spec.IvParameterSpec
 
 class MainActivity : AppCompatActivity() {
 
-    val encoder = Base64Encoder()
+    private val encoder = Base64Encoder()
 
+    @SuppressLint("LogNotTimber")
     private fun onAuthSuccess(cipher: Cipher) {
         if (needsNewKey) {
             val messageToEncrypt = "Hello"
@@ -43,10 +45,11 @@ class MainActivity : AppCompatActivity() {
                 val encryptedMessage = EncryptionData(messageToEncryptBytes, ivBytes, encoder)
                 val encryptedAsString = encryptedMessage.print()
                 pref.edit().putString(KEY, encryptedAsString).apply()
-                Log.d(TAG, "Encoded: " + encryptedAsString)
+                Log.d(TAG, "Encoded: $encryptedAsString")
                 Toast.makeText(this, "Hello $encryptedAsString", Toast.LENGTH_SHORT).show()
 
                 this.cipher = getDecryptingCipher(ivBytes)
+                checkForDecryptable()
             } catch (e: UnsupportedEncodingException) {
                 Log.e(TAG, "cannot encrypt", e)
             } catch (e: InvalidParameterSpecException) {
@@ -88,7 +91,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private var fingerprintCompat: FingerprintCompat? = null
+    private lateinit var fingerprintCompat: FingerprintCompat
 
     private var needsNewKey: Boolean = true
 
@@ -102,7 +105,7 @@ class MainActivity : AppCompatActivity() {
                 cipher = Cipher.getInstance(KeyProperties.KEY_ALGORITHM_AES + "/"
                         + KeyProperties.BLOCK_MODE_CBC + "/"
                         + KeyProperties.ENCRYPTION_PADDING_PKCS7)
-                fingerprintCompat?.initCipher(cipher!!, KEY)
+                fingerprintCompat.initCipher(cipher!!, KEY)
             } catch (e: NoSuchAlgorithmException) {
                 throw e
             } catch (e: NoSuchPaddingException) {
@@ -116,7 +119,7 @@ class MainActivity : AppCompatActivity() {
             val cipher = Cipher.getInstance(KeyProperties.KEY_ALGORITHM_AES + "/"
                     + KeyProperties.BLOCK_MODE_CBC + "/"
                     + KeyProperties.ENCRYPTION_PADDING_PKCS7)
-            fingerprintCompat?.initDecryptingCipher(cipher!!, KEY, encryptedIVs)
+            fingerprintCompat.initDecryptingCipher(cipher!!, KEY, encryptedIVs)
             return cipher
         } catch (e: NoSuchAlgorithmException) {
             throw e
@@ -127,6 +130,22 @@ class MainActivity : AppCompatActivity() {
 
     private var decryptionData: EncryptionData? = null
 
+    /**
+     * Check if the data in the prefs is in a format to be decrypted
+     */
+    private fun checkForDecryptable() {
+        val messageToDecrypt = pref.getString(KEY, "")!!
+        decryptionData = EncryptionData(messageToDecrypt, encoder)
+        if (decryptionData?.dataIsCorrect() == false) {
+            needsNewKey = true
+        } else {
+            // It is, create the cipher and set the icon
+            needsNewKey = false
+            cipher = getDecryptingCipher(decryptionData?.decodedIVs())
+            fab.setImageDrawable(resources.getDrawable(R.drawable.ic_lock_outline_black_24dp, theme))
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -134,43 +153,35 @@ class MainActivity : AppCompatActivity() {
 
         pref = getSharedPreferences(KEY, Context.MODE_PRIVATE)
 
-        var enabled = false
-        if (Build.VERSION.SDK_INT >= 23) {
-            fingerprintCompat = FingerprintCompat(applicationContext)
-            enabled = fingerprintCompat?.areFingerprintsEnabled() == true
+        fingerprintCompat = FingerprintCompat(applicationContext)
+        val enabled = fingerprintCompat.areFingerprintsEnabled() == true
 
-            if (fingerprintCompat?.hasKey(KEY) == true) {
-                ensureCipher()
-                val needsReenroll = fingerprintCompat?.initCipher(cipher!!, KEY) == false
-                if (needsReenroll) {
-                    Toast.makeText(this, "Fingerprints have changed, please re-authenticate", Toast.LENGTH_SHORT).show()
-                    needsNewKey = true
-                    fingerprintCompat?.createKey(KEY, true)
-                    pref.edit().remove(KEY).apply()
-                } else {
-                    needsNewKey = !pref.contains(KEY)
-                    if (!needsNewKey) {
-                        val messageToDecrypt = pref.getString(KEY, "")!!
-                        decryptionData = EncryptionData(messageToDecrypt, encoder)
-                        if (decryptionData?.dataIsCorrect() == false) {
-                            needsNewKey = true
-                        } else {
-                            cipher = getDecryptingCipher(decryptionData?.decodedIVs())
-                            fab.setImageDrawable(resources.getDrawable(R.drawable.ic_lock_outline_black_24dp, theme))
-                        }
-                    }
-                }
-            } else if (enabled) {
-                fingerprintCompat?.createKey(KEY, true)
-                ensureCipher()
+        if (fingerprintCompat.hasKey(KEY) == true) {
+            ensureCipher()
+            val needsReenroll = fingerprintCompat.initCipher(cipher!!, KEY) == false
+            if (needsReenroll) {
+                Toast.makeText(this, "Fingerprints have changed, please re-authenticate", Toast.LENGTH_SHORT).show()
+                needsNewKey = true
+                fingerprintCompat.createKey(KEY, true)
                 pref.edit().remove(KEY).apply()
+            } else {
+                needsNewKey = !pref.contains(KEY)
+                if (!needsNewKey) {
+                    checkForDecryptable()
+                }
             }
+        } else if (enabled) {
+            fingerprintCompat.createKey(KEY, true)
+            ensureCipher()
+            pref.edit().remove(KEY).apply()
+        } else {
+            Toast.makeText(this, R.string.no_sensors, Toast.LENGTH_LONG).show()
         }
 
         fab.isEnabled = enabled
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            fab.setOnClickListener { view ->
+            fab.setOnClickListener {
                 createBiometricPrompt()
                 try {
                 } catch (e: NoSuchAlgorithmException) {
@@ -187,7 +198,7 @@ class MainActivity : AppCompatActivity() {
         val biometricPrompt = BiometricPromptCompat.Builder(this)
                 .setDescription("This is a description")
                 .setTitle(getString(R.string.sign_in))
-                .setNegativeButton(getText(R.string.cancel), executor, DialogInterface.OnClickListener { dialogInterface, i ->
+                .setNegativeButton(getText(R.string.cancel), executor, DialogInterface.OnClickListener { _, i ->
                     Toast.makeText(this, "Aborted", Toast.LENGTH_SHORT).show()
                 }).build()
         val cancellationSignal = CancellationSignal()
@@ -220,7 +231,6 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private val TAG = MainActivity::class.java.simpleName
-        private const val KEY = "consors"
-        private const val DIALOG_FRAGMENT_TAG = "dialog"
+        private const val KEY = "secret"
     }
 }
