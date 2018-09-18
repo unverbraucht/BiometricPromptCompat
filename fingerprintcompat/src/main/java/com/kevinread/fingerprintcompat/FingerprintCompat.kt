@@ -10,6 +10,7 @@ package com.kevinread.fingerprintcompat
 
 import android.app.KeyguardManager
 import android.content.Context
+import android.content.pm.PackageManager
 import android.hardware.fingerprint.FingerprintManager
 import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
@@ -37,6 +38,8 @@ class FingerprintCompat(applicationContext: Context) {
 
     private var keyguardManager: KeyguardManager
 
+    private var packageManager: PackageManager
+
     init {
         try {
             keyStore = KeyStore.getInstance("AndroidKeyStore")
@@ -55,6 +58,7 @@ class FingerprintCompat(applicationContext: Context) {
 
         keyguardManager = applicationContext.getSystemService(KeyguardManager::class.java) ?: throw RuntimeException("No keyguard")
         fingerprintManager = applicationContext.getSystemService(FingerprintManager::class.java) ?: throw RuntimeException("No FingerprintManager")
+        packageManager = applicationContext.packageManager
 
 
         // Now the protection level of USE_FINGERPRINT permission is normal instead of dangerous.
@@ -73,6 +77,22 @@ class FingerprintCompat(applicationContext: Context) {
         } catch (e: UnrecoverableKeyException) {
             return false
         }
+    }
+
+    fun retrieveErrorCode(): Pair<Int, String?>? {
+        if (Build.VERSION.SDK_INT < 23) {
+            return Pair(BiometricPromptCompat.BIOMETRIC_ERROR_HW_NOT_PRESENT, BiometricPromptCompat.retrieveErrorString(BiometricPromptCompat.BIOMETRIC_ERROR_HW_NOT_PRESENT)!!)
+        }
+        if (!packageManager.hasSystemFeature(PackageManager.FEATURE_FINGERPRINT)) {
+            return Pair(BiometricPromptCompat.BIOMETRIC_ERROR_HW_NOT_PRESENT, BiometricPromptCompat.retrieveErrorString(BiometricPromptCompat.BIOMETRIC_ERROR_HW_NOT_PRESENT)!!)
+        } else if (!fingerprintManager.isHardwareDetected()) {
+            return Pair(BiometricPromptCompat.BIOMETRIC_ERROR_HW_UNAVAILABLE, BiometricPromptCompat.retrieveErrorString(BiometricPromptCompat.BIOMETRIC_ERROR_HW_UNAVAILABLE)!!)
+        } else if (!fingerprintManager.hasEnrolledFingerprints()) {
+            return Pair(BiometricPromptCompat.BIOMETRIC_ERROR_NO_BIOMETRICS, BiometricPromptCompat.retrieveErrorString(BiometricPromptCompat.BIOMETRIC_ERROR_NO_BIOMETRICS)!!)
+        } else if (!keyguardManager.isDeviceSecure) {
+            return Pair(BiometricPromptCompat.BIOMETRIC_ERROR_NO_KEYGUARD, null)
+        }
+        return null
     }
 
     fun areFingerprintsEnabled(): Boolean {
@@ -157,6 +177,7 @@ class FingerprintCompat(applicationContext: Context) {
             // which isn't available yet.
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 builder.setInvalidatedByBiometricEnrollment(invalidatedByBiometricEnrollment)
+                builder.setUserAuthenticationValidWhileOnBody(true)
             }
             keyGenerator.init(builder.build())
             keyGenerator.generateKey()
