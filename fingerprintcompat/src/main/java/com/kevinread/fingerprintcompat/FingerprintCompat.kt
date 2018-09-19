@@ -141,6 +141,21 @@ class FingerprintCompat(applicationContext: Context) {
     }
 
     /**
+     * Remove a key from the Android Key Store
+     * @return true if the removal was successful
+     */
+    fun removeKey(keyName: String): Boolean {
+        try {
+            keyStore.load(null)
+
+            keyStore.deleteEntry(keyName)
+            return true
+        } catch (e: KeyStoreException) {
+            return false
+        }
+    }
+
+    /**
      * Creates a symmetric key in the Android Key Store which can only be used after the user has
      * authenticated with fingerprint.
      *
@@ -177,7 +192,6 @@ class FingerprintCompat(applicationContext: Context) {
             // which isn't available yet.
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 builder.setInvalidatedByBiometricEnrollment(invalidatedByBiometricEnrollment)
-                builder.setUserAuthenticationValidWhileOnBody(true)
             }
             keyGenerator.init(builder.build())
             keyGenerator.generateKey()
