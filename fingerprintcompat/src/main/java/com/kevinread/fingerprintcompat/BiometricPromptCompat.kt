@@ -381,7 +381,11 @@ class BiometricPromptCompat private constructor(ctx: FragmentActivity,
                 else -> null
             }
             if (string != null) {
-                return Resources.getSystem().getString(Resources.getSystem().getIdentifier(string, "string", "android"))
+                try {
+                    return Resources.getSystem().getString(Resources.getSystem().getIdentifier(string, "string", "android"))
+                } catch (e: Resources.NotFoundException) {
+                    return null
+                }
             } else {
                 return null
             }

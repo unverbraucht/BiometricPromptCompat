@@ -81,14 +81,14 @@ class FingerprintCompat(applicationContext: Context) {
 
     fun retrieveErrorCode(): Pair<Int, String?>? {
         if (Build.VERSION.SDK_INT < 23) {
-            return Pair(BiometricPromptCompat.BIOMETRIC_ERROR_HW_NOT_PRESENT, BiometricPromptCompat.retrieveErrorString(BiometricPromptCompat.BIOMETRIC_ERROR_HW_NOT_PRESENT)!!)
+            return Pair(BiometricPromptCompat.BIOMETRIC_ERROR_HW_NOT_PRESENT, BiometricPromptCompat.retrieveErrorString(BiometricPromptCompat.BIOMETRIC_ERROR_HW_NOT_PRESENT))
         }
         if (!packageManager.hasSystemFeature(PackageManager.FEATURE_FINGERPRINT)) {
-            return Pair(BiometricPromptCompat.BIOMETRIC_ERROR_HW_NOT_PRESENT, BiometricPromptCompat.retrieveErrorString(BiometricPromptCompat.BIOMETRIC_ERROR_HW_NOT_PRESENT)!!)
+            return Pair(BiometricPromptCompat.BIOMETRIC_ERROR_HW_NOT_PRESENT, BiometricPromptCompat.retrieveErrorString(BiometricPromptCompat.BIOMETRIC_ERROR_HW_NOT_PRESENT))
         } else if (!fingerprintManager.isHardwareDetected()) {
-            return Pair(BiometricPromptCompat.BIOMETRIC_ERROR_HW_UNAVAILABLE, BiometricPromptCompat.retrieveErrorString(BiometricPromptCompat.BIOMETRIC_ERROR_HW_UNAVAILABLE)!!)
+            return Pair(BiometricPromptCompat.BIOMETRIC_ERROR_HW_UNAVAILABLE, BiometricPromptCompat.retrieveErrorString(BiometricPromptCompat.BIOMETRIC_ERROR_HW_UNAVAILABLE))
         } else if (!fingerprintManager.hasEnrolledFingerprints()) {
-            return Pair(BiometricPromptCompat.BIOMETRIC_ERROR_NO_BIOMETRICS, BiometricPromptCompat.retrieveErrorString(BiometricPromptCompat.BIOMETRIC_ERROR_NO_BIOMETRICS)!!)
+            return Pair(BiometricPromptCompat.BIOMETRIC_ERROR_NO_BIOMETRICS, BiometricPromptCompat.retrieveErrorString(BiometricPromptCompat.BIOMETRIC_ERROR_NO_BIOMETRICS))
         } else if (!keyguardManager.isDeviceSecure) {
             return Pair(BiometricPromptCompat.BIOMETRIC_ERROR_NO_KEYGUARD, null)
         }
