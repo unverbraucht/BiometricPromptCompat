@@ -328,10 +328,18 @@ class BiometricPromptCompat private constructor(ctx: FragmentActivity,
             sendError(BIOMETRIC_ERROR_HW_UNAVAILABLE, callback,
                     executor)
             return true
-        } else if (!fingerPrintManager.hasEnrolledFingerprints()) {
-            sendError(BIOMETRIC_ERROR_NO_BIOMETRICS, callback,
-                    executor)
-            return true
+        } else {
+            try {
+                if (!fingerPrintManager.hasEnrolledFingerprints()) {
+                    sendError(BIOMETRIC_ERROR_NO_BIOMETRICS, callback,
+                            executor)
+                    return true
+                }
+            } catch (e: SecurityException) {
+                // Some older MM phones throw this exception
+                sendError(BIOMETRIC_ERROR_HW_UNAVAILABLE, callback,
+                        executor)
+            }
         }
         return false
     }

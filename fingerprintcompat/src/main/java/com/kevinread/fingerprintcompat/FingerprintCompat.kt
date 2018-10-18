@@ -83,14 +83,18 @@ class FingerprintCompat(applicationContext: Context) {
         if (Build.VERSION.SDK_INT < 23) {
             return Pair(BiometricPromptCompat.BIOMETRIC_ERROR_HW_NOT_PRESENT, BiometricPromptCompat.retrieveErrorString(BiometricPromptCompat.BIOMETRIC_ERROR_HW_NOT_PRESENT))
         }
-        if (!packageManager.hasSystemFeature(PackageManager.FEATURE_FINGERPRINT)) {
-            return Pair(BiometricPromptCompat.BIOMETRIC_ERROR_HW_NOT_PRESENT, BiometricPromptCompat.retrieveErrorString(BiometricPromptCompat.BIOMETRIC_ERROR_HW_NOT_PRESENT))
-        } else if (!fingerprintManager.isHardwareDetected()) {
+        try {
+            if (!packageManager.hasSystemFeature(PackageManager.FEATURE_FINGERPRINT)) {
+                return Pair(BiometricPromptCompat.BIOMETRIC_ERROR_HW_NOT_PRESENT, BiometricPromptCompat.retrieveErrorString(BiometricPromptCompat.BIOMETRIC_ERROR_HW_NOT_PRESENT))
+            } else if (!fingerprintManager.isHardwareDetected()) {
+                return Pair(BiometricPromptCompat.BIOMETRIC_ERROR_HW_UNAVAILABLE, BiometricPromptCompat.retrieveErrorString(BiometricPromptCompat.BIOMETRIC_ERROR_HW_UNAVAILABLE))
+            } else if (!fingerprintManager.hasEnrolledFingerprints()) {
+                return Pair(BiometricPromptCompat.BIOMETRIC_ERROR_NO_BIOMETRICS, BiometricPromptCompat.retrieveErrorString(BiometricPromptCompat.BIOMETRIC_ERROR_NO_BIOMETRICS))
+            } else if (!keyguardManager.isDeviceSecure) {
+                return Pair(BiometricPromptCompat.BIOMETRIC_ERROR_NO_KEYGUARD, null)
+            }
+        } catch (e: SecurityException) {
             return Pair(BiometricPromptCompat.BIOMETRIC_ERROR_HW_UNAVAILABLE, BiometricPromptCompat.retrieveErrorString(BiometricPromptCompat.BIOMETRIC_ERROR_HW_UNAVAILABLE))
-        } else if (!fingerprintManager.hasEnrolledFingerprints()) {
-            return Pair(BiometricPromptCompat.BIOMETRIC_ERROR_NO_BIOMETRICS, BiometricPromptCompat.retrieveErrorString(BiometricPromptCompat.BIOMETRIC_ERROR_NO_BIOMETRICS))
-        } else if (!keyguardManager.isDeviceSecure) {
-            return Pair(BiometricPromptCompat.BIOMETRIC_ERROR_NO_KEYGUARD, null)
         }
         return null
     }
@@ -101,7 +105,14 @@ class FingerprintCompat(applicationContext: Context) {
         }
 
         @Suppress("DEPRECATION")
-        if (!fingerprintManager.hasEnrolledFingerprints()) {
+        // This can crash with a SecurityException on some devices (for example S5 Mini says
+        // Permission Denial: getCurrentUser() from pid=7916, uid=10206 requires android.permission.INTERACT_ACROSS_USERS
+        // Takes this as "not supported"
+        try {
+            if (!fingerprintManager.hasEnrolledFingerprints()) {
+                return false
+            }
+        } catch (e: SecurityException) {
             return false
         }
 
