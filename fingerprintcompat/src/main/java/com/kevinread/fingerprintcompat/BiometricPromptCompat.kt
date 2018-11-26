@@ -5,12 +5,14 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.DialogInterface
+import android.content.pm.PackageManager
 import android.content.res.Resources
 import android.hardware.fingerprint.FingerprintManager
 import android.os.*
 import android.support.annotation.CheckResult
 import android.support.annotation.RequiresPermission
 import android.support.v4.app.FragmentActivity
+import android.util.Log
 import java.security.Signature
 import java.util.concurrent.Executor
 import javax.crypto.Cipher
@@ -22,10 +24,21 @@ import javax.crypto.Mac
  * Copyright (c) 2018 Kevin Read. All rights reserved.
  */
 
-abstract open class BiometricPromptCompat internal constructor(ctx: FragmentActivity,
-                                                               val bundle: Bundle,
-                                                               val positiveButtonInfo: BiometricPromptCompat.ButtonInfo?,
-                                                               val negativeButtonInfo: BiometricPromptCompat.ButtonInfo) {
+internal val _builders = ArrayList<BiometricPromptCompatImplBuilder>()
+
+internal abstract class BiometricPromptCompatImplBuilder {
+    abstract fun build(ctx: FragmentActivity,
+                       bundle: Bundle,
+                       positiveButtonInfo: BiometricPromptCompat.ButtonInfo?,
+                       negativeButtonInfo: BiometricPromptCompat.ButtonInfo): BiometricPromptCompat?
+}
+
+abstract class BiometricPromptCompat internal constructor(ctx: FragmentActivity,
+                                                          val bundle: Bundle,
+                                                          val positiveButtonInfo: BiometricPromptCompat.ButtonInfo?,
+                                                          val negativeButtonInfo: BiometricPromptCompat.ButtonInfo) {
+
+    class NoBiometricAvailableException(message: String?) : Exception(message)
 
     internal class ButtonInfo internal constructor(internal var executor: Executor, internal var listener: DialogInterface.OnClickListener)
 
@@ -105,11 +118,34 @@ abstract open class BiometricPromptCompat internal constructor(ctx: FragmentActi
             try {
                 if (Build.VERSION.SDK_INT >= 28) {
                     return BiometricPromptCompatPie(activity, bundle, positiveButtonInfo, negativeButtonInfo)
+                } else if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+                    // Before Marshmallow all there is are vendor-specific versions
+                    return getCustomImpl() ?: throw NoBiometricAvailableException("None available")
+                } else {
+                    if (!activity.packageManager.hasSystemFeature(PackageManager.FEATURE_FINGERPRINT)) {
+                        return getCustomImpl() ?: throw NoBiometricAvailableException("None available")
+                    }
                 }
                 return BiometricPromptCompatMarshmallow(activity, bundle, positiveButtonInfo, negativeButtonInfo)
             } catch (e: UninitializedPropertyAccessException) {
                 throw IllegalArgumentException("missing parameters")
             }
+        }
+
+        private fun getCustomImpl(): BiometricPromptCompat? {
+            for (builder in _builders) {
+                try {
+                    val compat = builder.build(activity, bundle, positiveButtonInfo, negativeButtonInfo!!)
+                    if (compat != null) {
+                        return compat
+                    }
+                } catch (e: Exception) {
+                    if (BuildConfig.DEBUG) {
+                        Log.i(TAG, "Cannot create builder $builder", e)
+                    }
+                }
+            }
+            return null
         }
 
 
@@ -435,6 +471,8 @@ abstract open class BiometricPromptCompat internal constructor(ctx: FragmentActi
          * @hide
          */
         const val DISMISSED_REASON_USER_CANCEL = 3
+
+        private val TAG = BiometricPromptCompat::class.java.simpleName!!
     }
 
 }

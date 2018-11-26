@@ -14,6 +14,7 @@ import android.view.Menu
 import android.view.MenuItem
 import android.widget.Toast
 import com.kevinread.fingerprintcompat.BiometricPromptCompat
+import com.kevinread.fingerprintcompat.BiometricPromptCompatSpass
 import com.kevinread.fingerprintcompat.FingerprintCompat
 import com.kevinread.fingerprintcompat.encryption.Base64Encoder
 import com.kevinread.fingerprintcompat.encryption.EncryptionData
@@ -252,5 +253,9 @@ class MainActivity : AppCompatActivity() {
     companion object {
         private val TAG = MainActivity::class.java.simpleName
         private const val KEY = "secret"
+
+        init {
+            BiometricPromptCompatSpass
+        }
     }
 }

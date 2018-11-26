@@ -12,7 +12,7 @@ import java.util.concurrent.Executor
 
 /**
  * Created by Kevin Read <me@kevin-read.com> on 26.11.18 for biometricprint-compat.
- * Copyright (c) 2018 ${ORGANIZATION_NAME}. All rights reserved.
+ * Copyright (c) 2018 Kevin Read. All rights reserved.
  */
 class BiometricPromptCompatMarshmallow internal constructor(ctx: FragmentActivity,
                                                             bundle: Bundle,
