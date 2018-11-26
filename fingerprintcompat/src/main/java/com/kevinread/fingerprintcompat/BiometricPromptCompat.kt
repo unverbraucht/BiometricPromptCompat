@@ -315,7 +315,9 @@ class BiometricPromptCompat private constructor(ctx: FragmentActivity,
         val fragment = FingerprintAuthenticationDialogFragment()
         fragment.setData(cryptoObject, bundle, cancel, executor, callback, negativeButtonInfo)
 
-        fragment.show(fragmentManager, DIALOG_FRAGMENT_TAG)
+        val transaction = fragmentManager.beginTransaction()
+        transaction.add(fragment, DIALOG_FRAGMENT_TAG)
+        transaction.commitAllowingStateLoss()
     }
 
     private fun handlePreAuthenticationErrors(callback: AuthenticationCallback,
