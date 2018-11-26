@@ -28,8 +28,6 @@ import javax.crypto.NoSuchPaddingException
 import javax.crypto.spec.IvParameterSpec
 
 
-
-
 class MainActivity : AppCompatActivity() {
 
     private val encoder = Base64Encoder()
@@ -81,7 +79,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun onAuthFailed(error: Int, msg: CharSequence?) {
         if (msg != null) {
-            Toast.makeText(this, "Error: " + msg, Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Error: $msg", Toast.LENGTH_SHORT).show()
         } else {
             when (error) {
                 BiometricPromptCompat.BIOMETRIC_ERROR_USER_CANCELED -> Toast.makeText(this, "Aborted", Toast.LENGTH_SHORT).show()
@@ -154,11 +152,11 @@ class MainActivity : AppCompatActivity() {
         pref = getSharedPreferences(KEY, Context.MODE_PRIVATE)
 
         fingerprintCompat = FingerprintCompat(applicationContext)
-        val enabled = fingerprintCompat.areFingerprintsEnabled() == true
+        val enabled = fingerprintCompat.areFingerprintsEnabled()
 
-        if (fingerprintCompat.hasKey(KEY) == true) {
+        if (fingerprintCompat.hasKey(KEY)) {
             ensureCipher()
-            val needsReenroll = fingerprintCompat.initCipher(cipher!!, KEY) == false
+            val needsReenroll = !fingerprintCompat.initCipher(cipher!!, KEY)
             if (needsReenroll) {
                 Toast.makeText(this, "Fingerprints have changed, please re-authenticate", Toast.LENGTH_SHORT).show()
                 needsNewKey = true
@@ -190,7 +188,29 @@ class MainActivity : AppCompatActivity() {
                     throw RuntimeException("Failed to get an instance of Cipher", e)
                 }
             }
+
+            fab_no_key.setOnClickListener { createNonEncryptingBiometricPrompt() }
         }
+    }
+
+    private fun createNonEncryptingBiometricPrompt() {
+        val executor = if (Build.VERSION.SDK_INT >= 28) mainExecutor else BiometricPromptCompat.getExecutorForCurrentThread()
+        val biometricPrompt = BiometricPromptCompat.Builder(this)
+                .setDescription("We are not doing crypto operations here")
+                .setTitle("Just want your print")
+                .setNegativeButton(getText(R.string.cancel), executor, DialogInterface.OnClickListener { _, _ ->
+                    Toast.makeText(this, "Aborted", Toast.LENGTH_SHORT).show()
+                }).build()
+        val cancellationSignal = CancellationSignal()
+        biometricPrompt.authenticate(cancellationSignal, executor, object : BiometricPromptCompat.AuthenticationCallback() {
+            override fun onAuthenticationError(errorCode: Int, errString: CharSequence?) {
+                onAuthFailed(errorCode, errString)
+            }
+
+            override fun onAuthenticationSucceeded(result: BiometricPromptCompat.AuthenticationResult) {
+                Toast.makeText(this@MainActivity, "Success", Toast.LENGTH_LONG).show()
+            }
+        })
     }
 
     private fun createBiometricPrompt() {
@@ -198,17 +218,17 @@ class MainActivity : AppCompatActivity() {
         val biometricPrompt = BiometricPromptCompat.Builder(this)
                 .setDescription("This is a description")
                 .setTitle(getString(R.string.sign_in))
-                .setNegativeButton(getText(R.string.cancel), executor, DialogInterface.OnClickListener { _, i ->
+                .setNegativeButton(getText(R.string.cancel), executor, DialogInterface.OnClickListener { _, _ ->
                     Toast.makeText(this, "Aborted", Toast.LENGTH_SHORT).show()
                 }).build()
         val cancellationSignal = CancellationSignal()
-        biometricPrompt.authenticate(BiometricPromptCompat.CryptoObject(cipher=cipher!!), cancellationSignal, executor, object: BiometricPromptCompat.AuthenticationCallback() {
+        biometricPrompt.authenticate(BiometricPromptCompat.CryptoObject(cipher = cipher!!), cancellationSignal, executor, object : BiometricPromptCompat.AuthenticationCallback() {
             override fun onAuthenticationError(errorCode: Int, errString: CharSequence?) {
                 onAuthFailed(errorCode, errString)
             }
 
             override fun onAuthenticationSucceeded(result: BiometricPromptCompat.AuthenticationResult) {
-                onAuthSuccess(result.cryptoObject.cipher!!)
+                onAuthSuccess(result.cryptoObject?.cipher!!)
             }
         })
     }

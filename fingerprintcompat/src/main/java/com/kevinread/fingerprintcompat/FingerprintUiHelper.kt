@@ -32,57 +32,56 @@ internal class FingerprintUiHelper
 /**
  * Constructor for [FingerprintUiHelper].
  */
-internal constructor(private val mFingerprintManager: FingerprintManager,
-                     private val mIcon: ImageView, private val mErrorTextView: TextView,
-                     private val mDismissListener: DialogInterface.OnDismissListener,
-                     private var mCancellationSignal: CancellationSignal?,
-                     private val mExecutor: Executor?,
-                     private val mCallback: BiometricPromptCompat.AuthenticationCallback?) : FingerprintManager.AuthenticationCallback() {
+internal constructor(private val fingerprintManager: FingerprintManager,
+                     private val icon: ImageView, private val errorTextView: TextView,
+                     private val dismissListener: DialogInterface.OnDismissListener,
+                     private var cancellationSignal: CancellationSignal?,
+                     private val executor: Executor?,
+                     private val callback: BiometricPromptCompat.AuthenticationCallback?) : FingerprintManager.AuthenticationCallback() {
 
-    private var mSelfCancelled: Boolean = false
+    private var selfCancelled: Boolean = false
 
     val isHardwareAvailable: Boolean
-        get() = mFingerprintManager.isHardwareDetected
+        get() = fingerprintManager.isHardwareDetected
 
     // The line below prevents the false positive inspection from Android Studio
     val isFingerprintAuthAvailable: Boolean
-        get() = mFingerprintManager.isHardwareDetected && mFingerprintManager.hasEnrolledFingerprints()
+        get() = fingerprintManager.isHardwareDetected && fingerprintManager.hasEnrolledFingerprints()
 
-    private val mResetErrorTextRunnable = Runnable {
-        mErrorTextView.setTextColor(
-                mErrorTextView.resources.getColor(R.color.hint_color, null))
-        mErrorTextView.text = mErrorTextView.resources.getString(R.string.fingerprint_hint)
-        mIcon.setImageResource(R.drawable.ic_fingerprint_black_40dp)
+    private val resetErrorTextRunnable = Runnable {
+        errorTextView.setTextColor(
+                errorTextView.resources.getColor(R.color.hint_color, null))
+        errorTextView.text = errorTextView.resources.getString(R.string.fingerprint_hint)
+        icon.setImageResource(R.drawable.ic_fingerprint_black_40dp)
     }
 
-    fun startListening(cryptoObject: FingerprintManager.CryptoObject) {
+    fun startListening(cryptoObject: FingerprintManager.CryptoObject?) {
         if (!isFingerprintAuthAvailable) {
             return
         }
 
-        mSelfCancelled = false
-        // The line below prevents the false positive inspection from Android Studio
+        selfCancelled = false
 
-        mFingerprintManager
-                .authenticate(cryptoObject, mCancellationSignal, 0 /* flags */, this, null)
-        mIcon.setImageResource(R.drawable.ic_fingerprint_black_40dp)
+        fingerprintManager
+                .authenticate(cryptoObject, cancellationSignal, 0 /* flags */, this, null)
+        icon.setImageResource(R.drawable.ic_fingerprint_black_40dp)
     }
 
     fun stopListening() {
-        if (mCancellationSignal != null) {
-            mSelfCancelled = true
-            mCancellationSignal!!.cancel()
-            mCancellationSignal = null
+        if (cancellationSignal != null) {
+            selfCancelled = true
+            cancellationSignal!!.cancel()
+            cancellationSignal = null
         }
     }
 
     override fun onAuthenticationError(errMsgId: Int, errString: CharSequence) {
-        if (!mSelfCancelled) {
+        if (!selfCancelled) {
             showError(errString)
-            mIcon.postDelayed({
-                mExecutor!!.execute {
-                    mDismissListener.onDismiss(null)
-                    mCallback!!.onAuthenticationError(BiometricPromptCompat.errorCodeFromFingerprintManager(errMsgId), errString)
+            icon.postDelayed({
+                executor!!.execute {
+                    dismissListener.onDismiss(null)
+                    callback!!.onAuthenticationError(BiometricPromptCompat.errorCodeFromFingerprintManager(errMsgId), errString)
                 }
                 stopListening()
             }, ERROR_TIMEOUT_MILLIS)
@@ -91,39 +90,39 @@ internal constructor(private val mFingerprintManager: FingerprintManager,
 
     override fun onAuthenticationHelp(helpMsgId: Int, helpString: CharSequence) {
         showError(helpString)
-        mExecutor!!.execute { mCallback!!.onAuthenticationHelp(helpMsgId, helpString) }
+        executor!!.execute { callback!!.onAuthenticationHelp(helpMsgId, helpString) }
     }
 
     override fun onAuthenticationFailed() {
-        showError(mIcon.resources.getString(
+        showError(icon.resources.getString(
                 R.string.fingerprint_not_recognized))
-        mExecutor!!.execute { mCallback!!.onAuthenticationFailed() }
+        executor!!.execute { callback!!.onAuthenticationFailed() }
     }
 
     override fun onAuthenticationSucceeded(result: FingerprintManager.AuthenticationResult) {
-        mErrorTextView.removeCallbacks(mResetErrorTextRunnable)
-        mIcon.setImageResource(R.drawable.ic_fingerprint_success)
-        mErrorTextView.setTextColor(
-                mErrorTextView.resources.getColor(R.color.success_color, null))
-        mErrorTextView.text = mErrorTextView.resources.getString(R.string.fingerprint_success)
+        errorTextView.removeCallbacks(resetErrorTextRunnable)
+        icon.setImageResource(R.drawable.ic_fingerprint_success)
+        errorTextView.setTextColor(
+                errorTextView.resources.getColor(R.color.success_color, null))
+        errorTextView.text = errorTextView.resources.getString(R.string.fingerprint_success)
 
-        if (mCallback != null && mExecutor != null) {
+        if (callback != null && executor != null) {
         }
-        mIcon.postDelayed({
-            val cryptObject = BiometricPromptCompat.CryptoObject(result.cryptoObject.signature, result.cryptoObject.cipher, result.cryptoObject.mac)
-            mExecutor!!.execute { mCallback!!.onAuthenticationSucceeded(BiometricPromptCompat.AuthenticationResult(cryptObject)) }
+        icon.postDelayed({
+            val cryptObject = if (result.cryptoObject == null) null else BiometricPromptCompat.CryptoObject(result.cryptoObject?.signature, result.cryptoObject?.cipher, result.cryptoObject?.mac)
+            executor!!.execute { callback!!.onAuthenticationSucceeded(BiometricPromptCompat.AuthenticationResult(cryptObject)) }
             stopListening()
-            mDismissListener.onDismiss(null)
+            dismissListener.onDismiss(null)
         }, SUCCESS_DELAY_MILLIS)
     }
 
     private fun showError(error: CharSequence) {
-        mIcon.setImageResource(R.drawable.ic_fingerprint_error)
-        mErrorTextView.text = error
-        mErrorTextView.setTextColor(
-                mErrorTextView.resources.getColor(R.color.warning_color, null))
-        mErrorTextView.removeCallbacks(mResetErrorTextRunnable)
-        mErrorTextView.postDelayed(mResetErrorTextRunnable, ERROR_TIMEOUT_MILLIS)
+        icon.setImageResource(R.drawable.ic_fingerprint_error)
+        errorTextView.text = error
+        errorTextView.setTextColor(
+                errorTextView.resources.getColor(R.color.warning_color, null))
+        errorTextView.removeCallbacks(resetErrorTextRunnable)
+        errorTextView.postDelayed(resetErrorTextRunnable, ERROR_TIMEOUT_MILLIS)
     }
 
     companion object {

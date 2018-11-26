@@ -5,16 +5,12 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.DialogInterface
-import android.content.pm.PackageManager
 import android.content.res.Resources
-import android.hardware.biometrics.BiometricPrompt
 import android.hardware.fingerprint.FingerprintManager
 import android.os.*
 import android.support.annotation.CheckResult
-import android.support.annotation.RequiresApi
 import android.support.annotation.RequiresPermission
 import android.support.v4.app.FragmentActivity
-import android.support.v4.app.FragmentManager
 import java.security.Signature
 import java.util.concurrent.Executor
 import javax.crypto.Cipher
@@ -26,11 +22,10 @@ import javax.crypto.Mac
  * Copyright (c) 2018 Kevin Read. All rights reserved.
  */
 
-class BiometricPromptCompat private constructor(ctx: FragmentActivity,
-                                                val bundle: Bundle,
-                                                val positiveButtonInfo: ButtonInfo?,
-                                                val negativeButtonInfo: ButtonInfo,
-                                                val underlying: BiometricPrompt?) {
+abstract open class BiometricPromptCompat internal constructor(ctx: FragmentActivity,
+                                                               val bundle: Bundle,
+                                                               val positiveButtonInfo: BiometricPromptCompat.ButtonInfo?,
+                                                               val negativeButtonInfo: BiometricPromptCompat.ButtonInfo) {
 
     internal class ButtonInfo internal constructor(internal var executor: Executor, internal var listener: DialogInterface.OnClickListener)
 
@@ -55,11 +50,7 @@ class BiometricPromptCompat private constructor(ctx: FragmentActivity,
      * @property cryptoObject The {@link CryptoObject} that contains the cryptographic operation
      */
 
-    class AuthenticationResult internal constructor(val cryptoObject: CryptoObject) {
-
-        @RequiresApi(28)
-        constructor(biometricObject: BiometricPrompt.AuthenticationResult) : this(CryptoObject(biometricObject.cryptoObject?.signature, biometricObject.cryptoObject?.cipher, biometricObject.cryptoObject?.mac))
-    }
+    class AuthenticationResult internal constructor(val cryptoObject: CryptoObject?)
 
     /**
      * A wrapper around a cryptographic operation you wanted to use after the Biometric was successful.
@@ -68,41 +59,10 @@ class BiometricPromptCompat private constructor(ctx: FragmentActivity,
      * @property mac {@link Mac} object or null if this doesn't contain one.
      */
     class CryptoObject constructor(val signature: Signature? = null, val cipher: Cipher? = null, val mac: Mac? = null) {
-        @RequiresApi(28)
-        fun toBiometricPrompt(): BiometricPrompt.CryptoObject {
-            if (signature != null) {
-                return BiometricPrompt.CryptoObject(signature)
-            } else if (cipher != null) {
-                return BiometricPrompt.CryptoObject(cipher)
-            } else if (mac != null) {
-                return BiometricPrompt.CryptoObject(mac)
-            } else {
-                throw IllegalArgumentException("illegal cryptoObject")
-            }
-        }
-
-        @Suppress("DEPRECATION")
-        fun toFingerprintManager(): FingerprintManager.CryptoObject {
-            if (signature != null) {
-                return FingerprintManager.CryptoObject(signature)
-            } else if (cipher != null) {
-                return FingerprintManager.CryptoObject(cipher)
-            } else if (mac != null) {
-                return FingerprintManager.CryptoObject(mac)
-            } else {
-                throw IllegalArgumentException("illegal cryptoObject")
-            }
-        }
-
         init {
             if (signature == null && cipher == null && mac == null) {
                 throw IllegalArgumentException("one of either crypto objects must be non-null")
             }
-//            if (Build.VERSION.SDK_INT >= 28) {
-//                if (fingerprintObject != null || biometricObject == null) {
-//                    throw IllegalArgumentException("For Pie and beyond (SDK level 28) please use a BiometricPrompt.CryptoObject")
-//                }
-//            }
         }
     }
 
@@ -119,15 +79,9 @@ class BiometricPromptCompat private constructor(ctx: FragmentActivity,
             throw IllegalArgumentException("The passed Context is not an SupportActivity.")
         }
 
-        private val underlying: Any?
         private var activity: FragmentActivity
 
         init {
-            if (Build.VERSION.SDK_INT >= 28) {
-                underlying = BiometricPrompt.Builder(ctx)
-            } else {
-                underlying = null
-            }
             activity = asActivity(ctx)
         }
 
@@ -149,11 +103,10 @@ class BiometricPromptCompat private constructor(ctx: FragmentActivity,
             val negativeButtonInfo = negativeButtonInfo
                     ?: throw IllegalArgumentException("negative button info must be set")
             try {
-                if (underlying != null) {
-                    return BiometricPromptCompat(activity, bundle, positiveButtonInfo, negativeButtonInfo, (underlying as BiometricPrompt.Builder).build())
-
+                if (Build.VERSION.SDK_INT >= 28) {
+                    return BiometricPromptCompatPie(activity, bundle, positiveButtonInfo, negativeButtonInfo)
                 }
-                return BiometricPromptCompat(activity, bundle, positiveButtonInfo, negativeButtonInfo, null)
+                return BiometricPromptCompatMarshmallow(activity, bundle, positiveButtonInfo, negativeButtonInfo)
             } catch (e: UninitializedPropertyAccessException) {
                 throw IllegalArgumentException("missing parameters")
             }
@@ -168,9 +121,6 @@ class BiometricPromptCompat private constructor(ctx: FragmentActivity,
         @SuppressLint("NewApi")
         @CheckResult
         fun setDescription(description: CharSequence): Builder {
-            if (underlying != null) {
-                (underlying as BiometricPrompt.Builder).setDescription(description)
-            }
             bundle.putCharSequence(KEY_DESCRIPTION, description)
             return this
         }
@@ -211,10 +161,6 @@ class BiometricPromptCompat private constructor(ctx: FragmentActivity,
                 throw IllegalArgumentException("Text must be set and non-empty")
             }
 
-            if (underlying != null) {
-                (underlying as BiometricPrompt.Builder).setNegativeButton(text, executor, listener)
-            }
-
             bundle.putCharSequence(KEY_NEGATIVE_TEXT, text)
             negativeButtonInfo = ButtonInfo(executor, listener)
 
@@ -224,9 +170,6 @@ class BiometricPromptCompat private constructor(ctx: FragmentActivity,
         @SuppressLint("NewApi")
         @CheckResult
         fun setSubtitle(subtitle: CharSequence): Builder {
-            if (underlying != null) {
-                (underlying as BiometricPrompt.Builder).setSubtitle(subtitle)
-            }
             bundle.putCharSequence(KEY_SUBTITLE, subtitle)
             return this
         }
@@ -234,33 +177,14 @@ class BiometricPromptCompat private constructor(ctx: FragmentActivity,
         @SuppressLint("NewApi")
         @CheckResult
         fun setTitle(title: CharSequence): Builder {
-            if (underlying != null) {
-                (underlying as BiometricPrompt.Builder).setTitle(title)
-            }
             bundle.putCharSequence(KEY_TITLE, title)
             return this
         }
     }
 
-    private var packageManager: PackageManager
-
-    private var fingerPrintManager: FingerprintManager
-
-    private var fragmentManager: FragmentManager
-
-    init {
-        packageManager = ctx.packageManager
-        fingerPrintManager = ctx.getSystemService(FingerprintManager::class.java)
-        fragmentManager = ctx.supportFragmentManager
-    }
 
     @RequiresPermission(USE_FINGERPRINT)
-    fun authenticate(cancel: CancellationSignal, executor: Executor, callback: AuthenticationCallback) {
-        if (handlePreAuthenticationErrors(callback, executor)) {
-            return
-        }
-
-    }
+    abstract fun authenticate(cancel: CancellationSignal, executor: Executor, callback: AuthenticationCallback)
 
     /**
      * This call warms up the fingerprint hardware, displays a system-provided dialog, and starts
@@ -280,89 +204,17 @@ class BiometricPromptCompat private constructor(ctx: FragmentActivity,
      *
      * @throws IllegalArgumentException If any of the arguments are null
      *
-     * @param crypto Object associated with the call
+     * @param cryptoObject Object associated with the call
      * @param cancel An object that can be used to cancel authentication
      * @param executor An executor to handle callback events
      * @param callback An object to receive authentication events
      */
     @RequiresPermission(USE_FINGERPRINT)
-    fun authenticate(cryptoObject: CryptoObject, cancel: CancellationSignal, executor: Executor, callback: AuthenticationCallback) {
-        if (Build.VERSION.SDK_INT >= 28 && underlying != null) {
-            val underlyingCallback = @SuppressLint("NewApi")
-            object : BiometricPrompt.AuthenticationCallback() {
-                override fun onAuthenticationError(errorCode: Int, errString: CharSequence?) {
-                    callback.onAuthenticationError(errorCode, errString)
-                }
+    abstract fun authenticate(cryptoObject: CryptoObject, cancel: CancellationSignal, executor: Executor, callback: AuthenticationCallback)
 
-                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                    callback.onAuthenticationSucceeded(AuthenticationResult(result))
-                }
 
-                override fun onAuthenticationHelp(helpCode: Int, helpString: CharSequence?) {
-                    callback.onAuthenticationHelp(helpCode, helpString)
-                }
-
-                override fun onAuthenticationFailed() {
-                    callback.onAuthenticationFailed()
-                }
-            }
-            underlying.authenticate(cryptoObject.toBiometricPrompt(), cancel, executor, underlyingCallback)
-            return
-        }
-        if (handlePreAuthenticationErrors(callback, executor)) {
-            return
-        }
-        val fragment = FingerprintAuthenticationDialogFragment()
-        fragment.setData(cryptoObject, bundle, cancel, executor, callback, negativeButtonInfo)
-
-        val transaction = fragmentManager.beginTransaction()
-        transaction.add(fragment, DIALOG_FRAGMENT_TAG)
-        transaction.commitAllowingStateLoss()
-    }
-
-    private fun handlePreAuthenticationErrors(callback: AuthenticationCallback,
-                                              executor: Executor): Boolean {
-        if (!packageManager.hasSystemFeature(PackageManager.FEATURE_FINGERPRINT)) {
-            sendError(BIOMETRIC_ERROR_HW_NOT_PRESENT, callback,
-                    executor)
-            return true
-        } else if (!fingerPrintManager.isHardwareDetected()) {
-            sendError(BIOMETRIC_ERROR_HW_UNAVAILABLE, callback,
-                    executor)
-            return true
-        } else {
-            try {
-                if (!fingerPrintManager.hasEnrolledFingerprints()) {
-                    sendError(BIOMETRIC_ERROR_NO_BIOMETRICS, callback,
-                            executor)
-                    return true
-                }
-            } catch (e: SecurityException) {
-                // Some older MM phones throw this exception
-                sendError(BIOMETRIC_ERROR_HW_UNAVAILABLE, callback,
-                        executor)
-            }
-        }
-        return false
-    }
-
-    private fun sendError(error: Int, callback: AuthenticationCallback, executor: Executor) {
-        executor.execute {
-            callback.onAuthenticationError(error, retrieveErrorString(error))
-        }
-    }
-
-    class UiThreadExecutor : Executor {
-        private val mHandler = Handler(Looper.getMainLooper())
-
-        override fun execute(command: Runnable) {
-            mHandler.post(command)
-        }
-    }
-
+    @Suppress("unused")
     companion object {
-
-        private const val DIALOG_FRAGMENT_TAG = "com.kevinread.fingerprintcompat.BiometricCompat"
 
         @Suppress("DEPRECATION")
         fun errorCodeFromFingerprintManager(code: Int): Int {
@@ -383,7 +235,6 @@ class BiometricPromptCompat private constructor(ctx: FragmentActivity,
 
 
         internal fun retrieveErrorString(error: Int): String? {
-            val errorString: String?
             val string = when (error) {
                 BIOMETRIC_ERROR_NO_BIOMETRICS -> "com.android.internal.R.string.fingerprint_error_no_fingerprints"
                 BIOMETRIC_ERROR_HW_NOT_PRESENT -> "com.android.internal.R.string.fingerprint_error_hw_not_present"
@@ -403,6 +254,14 @@ class BiometricPromptCompat private constructor(ctx: FragmentActivity,
 
         fun getExecutorForCurrentThread(): Executor {
             return UiThreadExecutor()
+        }
+
+        class UiThreadExecutor : Executor {
+            private val mHandler = Handler(Looper.getMainLooper())
+
+            override fun execute(command: Runnable) {
+                mHandler.post(command)
+            }
         }
 
         internal fun errorCodeFromBiometricPrompt(code: Int): Int {

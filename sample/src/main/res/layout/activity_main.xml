@@ -30,4 +30,13 @@
         android:layout_margin="@dimen/fab_margin"
         app:srcCompat="@drawable/ic_fingerprint_black_40dp" />
 
+    <android.support.design.widget.FloatingActionButton
+        android:id="@+id/fab_no_key"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="@dimen/fab_margin"
+        android:layout_marginBottom="@dimen/fab_margin_second"
+        app:srcCompat="@drawable/ic_no_encryption_black_40dp" />
+
 </android.support.design.widget.CoordinatorLayout>

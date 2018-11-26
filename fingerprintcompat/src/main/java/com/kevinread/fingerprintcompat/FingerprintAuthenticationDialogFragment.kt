@@ -37,17 +37,17 @@ import java.util.concurrent.Executor
  */
 internal class FingerprintAuthenticationDialogFragment : AppCompatDialogFragment() {
 
-    private var mCancelButton: Button? = null
-    private var mFingerprintContent: View? = null
+    private var cancelButton: Button? = null
+    private var fingerprintContent: View? = null
 
-    private var mCryptoObject: BiometricPromptCompat.CryptoObject? = null
-    private var mFingerprintUiHelper: FingerprintUiHelper? = null
+    private var cryptoObject: FingerprintManager.CryptoObject? = null
+    private var fingerprintUiHelper: FingerprintUiHelper? = null
 
-    private lateinit var mResultCallback: BiometricPromptCompat.AuthenticationCallback
-    private lateinit var mBundle: Bundle
-    private lateinit var mExecutor: Executor
-    private lateinit var mCancellationSignal: CancellationSignal
-    private var mNegativeButtonInfo: BiometricPromptCompat.ButtonInfo? = null
+    private lateinit var resultCallback: BiometricPromptCompat.AuthenticationCallback
+    private lateinit var bundle: Bundle
+    private lateinit var executor: Executor
+    private lateinit var cancellationSignal: CancellationSignal
+    private var negativeButtonInfo: BiometricPromptCompat.ButtonInfo? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -60,33 +60,33 @@ internal class FingerprintAuthenticationDialogFragment : AppCompatDialogFragment
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?,
                               savedInstanceState: Bundle?): View? {
-        dialog.setTitle(mBundle.getCharSequence(BiometricPromptCompat.KEY_TITLE))
+        dialog.setTitle(bundle.getCharSequence(BiometricPromptCompat.KEY_TITLE))
         val v = inflater.inflate(R.layout.fingerprint_dialog_container, container, false)
 
-        v.findViewById<TextView>(R.id.fingerprint_description).text = mBundle.getCharSequence(BiometricPromptCompat.KEY_DESCRIPTION)
+        v.findViewById<TextView>(R.id.fingerprint_description).text = bundle.getCharSequence(BiometricPromptCompat.KEY_DESCRIPTION)
 
-        mCancelButton = v.findViewById<View>(R.id.cancel_button) as Button
-        mCancelButton!!.setOnClickListener {
-            mNegativeButtonInfo!!.executor.execute { mNegativeButtonInfo!!.listener.onClick(null, BiometricPromptCompat.DISMISSED_REASON_NEGATIVE) }
+        cancelButton = v.findViewById<View>(R.id.cancel_button) as Button
+        cancelButton!!.setOnClickListener {
+            negativeButtonInfo!!.executor.execute { negativeButtonInfo!!.listener.onClick(null, BiometricPromptCompat.DISMISSED_REASON_NEGATIVE) }
             dismiss()
         }
 
-        mCancelButton!!.text = mBundle.getCharSequence(BiometricPromptCompat.KEY_NEGATIVE_TEXT)
+        cancelButton!!.text = bundle.getCharSequence(BiometricPromptCompat.KEY_NEGATIVE_TEXT)
 
-        mFingerprintContent = v.findViewById(R.id.fingerprint_container)
+        fingerprintContent = v.findViewById(R.id.fingerprint_container)
         @Suppress("DEPRECATION")
-        mFingerprintUiHelper = FingerprintUiHelper(
+        fingerprintUiHelper = FingerprintUiHelper(
                 activity!!.getSystemService(FingerprintManager::class.java)!!,
                 v.findViewById<View>(R.id.fingerprint_icon) as ImageView,
-                v.findViewById<View>(R.id.fingerprint_status) as TextView, DialogInterface.OnDismissListener { dismiss() }, mCancellationSignal, mExecutor, mResultCallback)
+                v.findViewById<View>(R.id.fingerprint_status) as TextView, DialogInterface.OnDismissListener { dismiss() }, cancellationSignal, executor, resultCallback)
 
         // If fingerprint authentication is not available, return error immediately and exit
         // Note: This should not happen, BiometricPromptCompat should prevent this
-        if (!mFingerprintUiHelper!!.isHardwareAvailable) {
+        if (!fingerprintUiHelper!!.isHardwareAvailable) {
             onError(BiometricPromptCompat.BIOMETRIC_ERROR_HW_NOT_PRESENT, null)
             dismiss()
         } else {
-            if (!mFingerprintUiHelper!!.isFingerprintAuthAvailable) {
+            if (!fingerprintUiHelper!!.isFingerprintAuthAvailable) {
                 onError(BiometricPromptCompat.BIOMETRIC_ERROR_NO_BIOMETRICS, null)
                 dismiss()
             }
@@ -96,28 +96,28 @@ internal class FingerprintAuthenticationDialogFragment : AppCompatDialogFragment
 
     override fun onResume() {
         super.onResume()
-        mFingerprintUiHelper!!.startListening(mCryptoObject!!.toFingerprintManager())
+        fingerprintUiHelper!!.startListening(cryptoObject)
     }
 
     override fun onPause() {
         super.onPause()
-        mFingerprintUiHelper!!.stopListening()
+        fingerprintUiHelper!!.stopListening()
     }
 
     fun onError(error: Int, errString: CharSequence?) {
-        mFingerprintUiHelper!!.stopListening()
-        mExecutor.execute { mResultCallback.onAuthenticationError(error, errString) }
+        fingerprintUiHelper!!.stopListening()
+        executor.execute { resultCallback.onAuthenticationError(error, errString) }
     }
 
-    internal fun setData(cryptoObject: BiometricPromptCompat.CryptoObject,
-                bundle: Bundle, cancel: CancellationSignal, executor: Executor,
-                callback: BiometricPromptCompat.AuthenticationCallback,
-                negativeButtonInfo: BiometricPromptCompat.ButtonInfo) {
-        mCryptoObject = cryptoObject
-        mBundle = bundle
-        mCancellationSignal = cancel
-        mExecutor = executor
-        mResultCallback = callback
-        mNegativeButtonInfo = negativeButtonInfo
+    internal fun setData(cryptoObject: FingerprintManager.CryptoObject?,
+                         bundle: Bundle, cancel: CancellationSignal, executor: Executor,
+                         callback: BiometricPromptCompat.AuthenticationCallback,
+                         negativeButtonInfo: BiometricPromptCompat.ButtonInfo) {
+        this.cryptoObject = cryptoObject
+        this.bundle = bundle
+        this.cancellationSignal = cancel
+        this.executor = executor
+        this.resultCallback = callback
+        this.negativeButtonInfo = negativeButtonInfo
     }
 }
