@@ -80,8 +80,8 @@ internal constructor(private val fingerprintManager: FingerprintManager,
             showError(errString)
             icon.postDelayed({
                 executor!!.execute {
-                    dismissListener.onDismiss(null)
                     callback!!.onAuthenticationError(BiometricPromptCompat.errorCodeFromFingerprintManager(errMsgId), errString)
+                    dismissListener.onDismiss(null)
                 }
                 stopListening()
             }, ERROR_TIMEOUT_MILLIS)
@@ -110,9 +110,12 @@ internal constructor(private val fingerprintManager: FingerprintManager,
         }
         icon.postDelayed({
             val cryptObject = if (result.cryptoObject == null) null else BiometricPromptCompat.CryptoObject(result.cryptoObject?.signature, result.cryptoObject?.cipher, result.cryptoObject?.mac)
-            executor!!.execute { callback!!.onAuthenticationSucceeded(BiometricPromptCompat.AuthenticationResult(cryptObject)) }
+            executor!!.execute {
+                callback!!.onAuthenticationSucceeded(BiometricPromptCompat.AuthenticationResult(cryptObject))
+                dismissListener.onDismiss(null)
+            }
             stopListening()
-            dismissListener.onDismiss(null)
+
         }, SUCCESS_DELAY_MILLIS)
     }
 

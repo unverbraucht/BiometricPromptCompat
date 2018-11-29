@@ -68,7 +68,7 @@ internal class FingerprintAuthenticationDialogFragment : AppCompatDialogFragment
         cancelButton = v.findViewById<View>(R.id.cancel_button) as Button
         cancelButton!!.setOnClickListener {
             negativeButtonInfo!!.executor.execute { negativeButtonInfo!!.listener.onClick(null, BiometricPromptCompat.DISMISSED_REASON_NEGATIVE) }
-            dismiss()
+            dismissAllowingStateLoss()
         }
 
         cancelButton!!.text = bundle.getCharSequence(BiometricPromptCompat.KEY_NEGATIVE_TEXT)
@@ -78,17 +78,17 @@ internal class FingerprintAuthenticationDialogFragment : AppCompatDialogFragment
         fingerprintUiHelper = FingerprintUiHelper(
                 activity!!.getSystemService(FingerprintManager::class.java)!!,
                 v.findViewById<View>(R.id.fingerprint_icon) as ImageView,
-                v.findViewById<View>(R.id.fingerprint_status) as TextView, DialogInterface.OnDismissListener { dismiss() }, cancellationSignal, executor, resultCallback)
+                v.findViewById<View>(R.id.fingerprint_status) as TextView, DialogInterface.OnDismissListener { dismissAllowingStateLoss() }, cancellationSignal, executor, resultCallback)
 
         // If fingerprint authentication is not available, return error immediately and exit
         // Note: This should not happen, BiometricPromptCompat should prevent this
         if (!fingerprintUiHelper!!.isHardwareAvailable) {
             onError(BiometricPromptCompat.BIOMETRIC_ERROR_HW_NOT_PRESENT, null)
-            dismiss()
+            dismissAllowingStateLoss()
         } else {
             if (!fingerprintUiHelper!!.isFingerprintAuthAvailable) {
                 onError(BiometricPromptCompat.BIOMETRIC_ERROR_NO_BIOMETRICS, null)
-                dismiss()
+                dismissAllowingStateLoss()
             }
         }
         return v

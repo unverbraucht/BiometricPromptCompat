@@ -252,6 +252,19 @@ abstract class BiometricPromptCompat internal constructor(ctx: FragmentActivity,
     @Suppress("unused")
     companion object {
 
+        fun hasBiometricHardware(ctx: Context): Boolean {
+            try {
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+                    // Before Marshmallow all there is are vendor-specific versions
+                    return !_builders.isEmpty()
+                } else {
+                    return ctx.packageManager.hasSystemFeature(PackageManager.FEATURE_FINGERPRINT)
+                }
+            } catch (e: UninitializedPropertyAccessException) {
+                throw IllegalArgumentException("missing parameters")
+            }
+        }
+
         @Suppress("DEPRECATION")
         fun errorCodeFromFingerprintManager(code: Int): Int {
             return when (code) {

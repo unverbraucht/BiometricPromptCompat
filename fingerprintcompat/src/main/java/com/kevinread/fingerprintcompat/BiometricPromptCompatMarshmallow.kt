@@ -1,10 +1,14 @@
+@file:Suppress("DEPRECATION")
+
 package com.kevinread.fingerprintcompat
 
 import android.Manifest
 import android.content.pm.PackageManager
 import android.hardware.fingerprint.FingerprintManager
+import android.os.Build
 import android.os.Bundle
 import android.os.CancellationSignal
+import android.support.annotation.RequiresApi
 import android.support.annotation.RequiresPermission
 import android.support.v4.app.FragmentActivity
 import android.support.v4.app.FragmentManager
@@ -14,13 +18,14 @@ import java.util.concurrent.Executor
  * Created by Kevin Read <me@kevin-read.com> on 26.11.18 for biometricprint-compat.
  * Copyright (c) 2018 Kevin Read. All rights reserved.
  */
+@RequiresApi(Build.VERSION_CODES.M)
 class BiometricPromptCompatMarshmallow internal constructor(ctx: FragmentActivity,
                                                             bundle: Bundle,
                                                             positiveButtonInfo: BiometricPromptCompat.ButtonInfo?,
                                                             negativeButtonInfo: BiometricPromptCompat.ButtonInfo) : BiometricPromptCompat(ctx, bundle, positiveButtonInfo, negativeButtonInfo) {
 
 
-    private var packageManager: PackageManager
+    private var packageManager: PackageManager = ctx.packageManager
 
     private var fingerPrintManager: FingerprintManager
 
@@ -49,7 +54,6 @@ class BiometricPromptCompatMarshmallow internal constructor(ctx: FragmentActivit
     }
 
     init {
-        packageManager = ctx.packageManager
         fingerPrintManager = ctx.getSystemService(FingerprintManager::class.java)
         fragmentManager = ctx.supportFragmentManager
     }

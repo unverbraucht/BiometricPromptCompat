@@ -99,6 +99,10 @@ class FingerprintCompat(applicationContext: Context) {
         return null
     }
 
+    fun hasFingerprintHardware(): Boolean {
+        return packageManager.hasSystemFeature(PackageManager.FEATURE_FINGERPRINT)
+    }
+
     fun areFingerprintsEnabled(): Boolean {
         if (!keyguardManager.isKeyguardSecure) {
             return false
