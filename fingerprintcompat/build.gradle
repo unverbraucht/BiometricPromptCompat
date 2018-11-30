@@ -1,5 +1,7 @@
 apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
+apply plugin: 'com.github.dcendents.android-maven'
+
 
 android {
     compileSdkVersion 28
@@ -12,6 +14,7 @@ android {
 
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
 
+
     }
 
     buildTypes {
@@ -19,23 +22,21 @@ android {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
-//        samsung {
-//            initWith debug
-//        }
-//        samsungRelease {
-//            initWith release
-//        }
     }
 
+    defaultPublishConfig "aospRelease"
+
+    // Add vendor-specific code to build
     flavorDimensions "vendor"
     productFlavors {
         samsung {
-
+            dimension "vendor"
         }
 
-
+        aosp {
+            dimension "vendor"
+        }
     }
-
 }
 
 dependencies {
@@ -47,6 +48,38 @@ dependencies {
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
 }
+
+group = 'com.kevinread.fingerprintcompat'
+version = library_version
+
+task sourcesJar(type: Jar) {
+    classifier = 'sources'
+    from android.sourceSets.main.javaDirectories
+}
+
+artifacts {
+    archives sourcesJar
+}
+
+//if (android.productFlavors.size() > 0) {
+//    android.libraryVariants.all { variant ->
+//        if (variant.name.toLowerCase().contains("debug")) {
+//            return
+//        }
+//
+//        def bundleTask = tasks["bundle${variant.name.capitalize()}"]
+//
+//        artifacts {
+//            archives(bundleTask.archivePath) {
+//                classifier variant.flavorName
+//                builtBy bundleTask
+//                name = project.name
+//            }
+//        }
+//
+//    }
+//}
+
 repositories {
     mavenCentral()
     google()
