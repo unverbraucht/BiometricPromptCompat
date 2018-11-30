@@ -68,7 +68,7 @@ internal class FingerprintAuthenticationDialogFragment : AppCompatDialogFragment
         mCancelButton = v.findViewById<View>(R.id.cancel_button) as Button
         mCancelButton!!.setOnClickListener {
             mNegativeButtonInfo!!.executor.execute { mNegativeButtonInfo!!.listener.onClick(null, BiometricPromptCompat.DISMISSED_REASON_NEGATIVE) }
-            dismiss()
+            dismissAllowingStateLoss()
         }
 
         mCancelButton!!.text = mBundle.getCharSequence(BiometricPromptCompat.KEY_NEGATIVE_TEXT)
@@ -78,17 +78,17 @@ internal class FingerprintAuthenticationDialogFragment : AppCompatDialogFragment
         mFingerprintUiHelper = FingerprintUiHelper(
                 activity!!.getSystemService(FingerprintManager::class.java)!!,
                 v.findViewById<View>(R.id.fingerprint_icon) as ImageView,
-                v.findViewById<View>(R.id.fingerprint_status) as TextView, DialogInterface.OnDismissListener { dismiss() }, mCancellationSignal, mExecutor, mResultCallback)
+                v.findViewById<View>(R.id.fingerprint_status) as TextView, DialogInterface.OnDismissListener { dismissAllowingStateLoss() }, mCancellationSignal, mExecutor, mResultCallback)
 
         // If fingerprint authentication is not available, return error immediately and exit
         // Note: This should not happen, BiometricPromptCompat should prevent this
         if (!mFingerprintUiHelper!!.isHardwareAvailable) {
             onError(BiometricPromptCompat.BIOMETRIC_ERROR_HW_NOT_PRESENT, null)
-            dismiss()
+            dismissAllowingStateLoss()
         } else {
             if (!mFingerprintUiHelper!!.isFingerprintAuthAvailable) {
                 onError(BiometricPromptCompat.BIOMETRIC_ERROR_NO_BIOMETRICS, null)
-                dismiss()
+                dismissAllowingStateLoss()
             }
         }
         return v
@@ -110,9 +110,9 @@ internal class FingerprintAuthenticationDialogFragment : AppCompatDialogFragment
     }
 
     internal fun setData(cryptoObject: BiometricPromptCompat.CryptoObject,
-                bundle: Bundle, cancel: CancellationSignal, executor: Executor,
-                callback: BiometricPromptCompat.AuthenticationCallback,
-                negativeButtonInfo: BiometricPromptCompat.ButtonInfo) {
+                         bundle: Bundle, cancel: CancellationSignal, executor: Executor,
+                         callback: BiometricPromptCompat.AuthenticationCallback,
+                         negativeButtonInfo: BiometricPromptCompat.ButtonInfo) {
         mCryptoObject = cryptoObject
         mBundle = bundle
         mCancellationSignal = cancel
