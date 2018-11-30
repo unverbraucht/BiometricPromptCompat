@@ -24,7 +24,7 @@ android {
         }
     }
 
-    // defaultPublishConfig "aospRelease"
+    defaultPublishConfig "aospRelease"
 
     // Add vendor-specific code to build
     flavorDimensions "vendor"
@@ -37,6 +37,15 @@ android {
             dimension "vendor"
         }
     }
+}
+
+task sourcesJar(type: Jar) {
+    classifier = 'sources'
+    from android.sourceSets.main.javaDirectories
+}
+
+artifacts {
+    archives sourcesJar
 }
 
 dependencies {
@@ -52,33 +61,24 @@ dependencies {
 group = 'com.kevinread.fingerprintcompat'
 version = library_version
 
-task sourcesJar(type: Jar) {
-    classifier = 'sources'
-    from android.sourceSets.main.javaDirectories
-}
+if (android.productFlavors.size() > 0) {
+    android.libraryVariants.all { variant ->
+        if (variant.name.toLowerCase().contains("debug")) {
+            return
+        }
 
-artifacts {
-    archives sourcesJar
-}
+        def bundleTask = tasks["bundle${variant.name.capitalize()}Aar"]
 
-//if (android.productFlavors.size() > 0) {
-//    android.libraryVariants.all { variant ->
-//        if (variant.name.toLowerCase().contains("debug")) {
-//            return
-//        }
-//
-//        def bundleTask = tasks["bundle${variant.name.capitalize()}"]
-//
-//        artifacts {
-//            archives(bundleTask.archivePath) {
-//                classifier variant.flavorName
-//                builtBy bundleTask
-//                name = project.name
-//            }
-//        }
-//
-//    }
-//}
+        artifacts {
+            archives(bundleTask.archivePath) {
+                classifier variant.flavorName
+                builtBy bundleTask
+                name = project.name
+            }
+        }
+
+    }
+}
 
 repositories {
     mavenCentral()
