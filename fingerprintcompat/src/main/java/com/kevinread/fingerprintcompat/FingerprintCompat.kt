@@ -34,7 +34,7 @@ class FingerprintCompat(applicationContext: Context) {
     private var keyStore: KeyStore
     private var keyGenerator: KeyGenerator
 
-    private var fingerprintManager: FingerprintManager
+    private var fingerprintManager: FingerprintManager?
 
     private var keyguardManager: KeyguardManager
 
@@ -57,7 +57,7 @@ class FingerprintCompat(applicationContext: Context) {
         }
 
         keyguardManager = applicationContext.getSystemService(KeyguardManager::class.java) ?: throw RuntimeException("No keyguard")
-        fingerprintManager = applicationContext.getSystemService(FingerprintManager::class.java) ?: throw RuntimeException("No FingerprintManager")
+        fingerprintManager = applicationContext.getSystemService(FingerprintManager::class.java)
         packageManager = applicationContext.packageManager
 
 
@@ -80,15 +80,16 @@ class FingerprintCompat(applicationContext: Context) {
     }
 
     fun retrieveErrorCode(): Pair<Int, String?>? {
-        if (Build.VERSION.SDK_INT < 23) {
+        val manager = this.fingerprintManager
+        if (manager == null || Build.VERSION.SDK_INT < 23) {
             return Pair(BiometricPromptCompat.BIOMETRIC_ERROR_HW_NOT_PRESENT, BiometricPromptCompat.retrieveErrorString(BiometricPromptCompat.BIOMETRIC_ERROR_HW_NOT_PRESENT))
         }
         try {
             if (!packageManager.hasSystemFeature(PackageManager.FEATURE_FINGERPRINT)) {
                 return Pair(BiometricPromptCompat.BIOMETRIC_ERROR_HW_NOT_PRESENT, BiometricPromptCompat.retrieveErrorString(BiometricPromptCompat.BIOMETRIC_ERROR_HW_NOT_PRESENT))
-            } else if (!fingerprintManager.isHardwareDetected()) {
+            } else if (!manager.isHardwareDetected()) {
                 return Pair(BiometricPromptCompat.BIOMETRIC_ERROR_HW_UNAVAILABLE, BiometricPromptCompat.retrieveErrorString(BiometricPromptCompat.BIOMETRIC_ERROR_HW_UNAVAILABLE))
-            } else if (!fingerprintManager.hasEnrolledFingerprints()) {
+            } else if (!manager.hasEnrolledFingerprints()) {
                 return Pair(BiometricPromptCompat.BIOMETRIC_ERROR_NO_BIOMETRICS, BiometricPromptCompat.retrieveErrorString(BiometricPromptCompat.BIOMETRIC_ERROR_NO_BIOMETRICS))
             } else if (!keyguardManager.isDeviceSecure) {
                 return Pair(BiometricPromptCompat.BIOMETRIC_ERROR_NO_KEYGUARD, null)
@@ -97,6 +98,13 @@ class FingerprintCompat(applicationContext: Context) {
             return Pair(BiometricPromptCompat.BIOMETRIC_ERROR_HW_UNAVAILABLE, BiometricPromptCompat.retrieveErrorString(BiometricPromptCompat.BIOMETRIC_ERROR_HW_UNAVAILABLE))
         }
         return null
+    }
+
+    fun hasFingerprintHardware(): Boolean {
+        if (fingerprintManager == null) {
+            return false
+        }
+        return packageManager.hasSystemFeature(PackageManager.FEATURE_FINGERPRINT)
     }
 
     fun areFingerprintsEnabled(): Boolean {
@@ -109,7 +117,7 @@ class FingerprintCompat(applicationContext: Context) {
         // Permission Denial: getCurrentUser() from pid=7916, uid=10206 requires android.permission.INTERACT_ACROSS_USERS
         // Takes this as "not supported"
         try {
-            if (!fingerprintManager.hasEnrolledFingerprints()) {
+            if (fingerprintManager?.hasEnrolledFingerprints() != true) {
                 return false
             }
         } catch (e: SecurityException) {
