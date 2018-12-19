@@ -58,6 +58,12 @@ internal class FingerprintAuthenticationDialogFragment : AppCompatDialogFragment
         setStyle(DialogFragment.STYLE_NORMAL, android.R.style.Theme_Material_Light_Dialog)
     }
 
+    override fun onCancel(dialog: DialogInterface?) {
+        super.onCancel(dialog)
+
+        onError(BiometricPromptCompat.BIOMETRIC_ERROR_CANCELED, null)
+    }
+
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?,
                               savedInstanceState: Bundle?): View? {
         dialog.setTitle(bundle.getCharSequence(BiometricPromptCompat.KEY_TITLE))
@@ -65,9 +71,13 @@ internal class FingerprintAuthenticationDialogFragment : AppCompatDialogFragment
 
         v.findViewById<TextView>(R.id.fingerprint_description).text = bundle.getCharSequence(BiometricPromptCompat.KEY_DESCRIPTION)
 
+        // We want to be notified of cancellation
+        dialog.setCanceledOnTouchOutside(true)
+
         cancelButton = v.findViewById<View>(R.id.cancel_button) as Button
         cancelButton!!.setOnClickListener {
             negativeButtonInfo!!.executor.execute { negativeButtonInfo!!.listener.onClick(null, BiometricPromptCompat.DISMISSED_REASON_NEGATIVE) }
+
             dismissAllowingStateLoss()
         }
 
@@ -93,6 +103,8 @@ internal class FingerprintAuthenticationDialogFragment : AppCompatDialogFragment
         }
         return v
     }
+
+
 
     override fun onResume() {
         super.onResume()
