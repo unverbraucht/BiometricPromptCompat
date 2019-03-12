@@ -66,6 +66,13 @@ internal class FingerprintAuthenticationDialogFragment : AppCompatDialogFragment
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?,
                               savedInstanceState: Bundle?): View? {
+
+        // This fragment cannot be recreated
+        if(savedInstanceState != null){
+            dismissAllowingStateLoss()
+            return null
+        }
+
         dialog.setTitle(bundle.getCharSequence(BiometricPromptCompat.KEY_TITLE))
         val v = inflater.inflate(R.layout.fingerprint_dialog_container, container, false)
 
